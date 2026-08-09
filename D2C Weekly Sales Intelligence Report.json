@@ -1,0 +1,577 @@
+{
+  "name": "D2C Weekly Sales Intelligence Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "13f8acc7-888e-477c-90ae-f0d6fdb153e7",
+      "name": "Weekly Report Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "1JygNET0xQ6Cjth3MtVIAPy8i4Vx1JBEAEVFGNU9VRFI",
+          "cachedResultName": "Sales D2C",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JygNET0xQ6Cjth3MtVIAPy8i4Vx1JBEAEVFGNU9VRFI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "sales_data"
+        },
+        "options": {}
+      },
+      "id": "b9655f44-36ec-45dd-891c-74c2ad3a8f12",
+      "name": "Read Sales Data",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "lLpznsg6chbJ0gMy",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\n\nconst num = (v) => Number(v || 0);\n\n// Find latest date in dataset\nconst allDates = rows.map(r => new Date(r.date));\nconst latestDate = new Date(Math.max(...allDates));\n\n// Normalize date\nlatestDate.setHours(0,0,0,0);\n\nconst DAY = 1000 * 60 * 60 * 24;\n\n// Difference from latest date\nfunction dayDiff(dateStr) {\n  const d = new Date(dateStr);\n  d.setHours(0,0,0,0);\n  return Math.floor((latestDate - d) / DAY);\n}\n\n// Current week = latest 7 days\nconst thisWeek = rows.filter(r => {\n  const d = dayDiff(r.date);\n  return d >= 0 && d < 7;\n});\n\n// Previous week\nconst lastWeek = rows.filter(r => {\n  const d = dayDiff(r.date);\n  return d >= 7 && d < 14;\n});\n\nconst sumRevenue = arr => arr.reduce((a,r)=>a+num(r.revenue),0);\nconst sumUnits = arr => arr.reduce((a,r)=>a+num(r.units_sold),0);\n\nconst totalRevenueThisWeek = sumRevenue(thisWeek);\nconst totalRevenueLastWeek = sumRevenue(lastWeek);\n\nconst totalOrdersThisWeek = sumUnits(thisWeek);\n\nconst revenueChangePct =\ntotalRevenueLastWeek === 0\n? 0\n: Number((((totalRevenueThisWeek-totalRevenueLastWeek)/totalRevenueLastWeek)*100).toFixed(1));\n\nconst avgOrderValue =\ntotalOrdersThisWeek === 0\n? 0\n: Math.round(totalRevenueThisWeek/totalOrdersThisWeek);\n\n// Aggregate products\nfunction aggregate(arr){\n  const obj = {};\n  for(const r of arr){\n    const p = r.product_name;\n    if(!obj[p]){\n      obj[p]={\n        revenue:0,\n        units:0\n      };\n    }\n    obj[p].revenue += num(r.revenue);\n    obj[p].units += num(r.units_sold);\n  }\n  return obj;\n}\n\nconst thisAgg = aggregate(thisWeek);\nconst lastAgg = aggregate(lastWeek);\n\n// Top products\nconst top3Products =\nObject.entries(thisAgg)\n.sort((a,b)=>b[1].revenue-a[1].revenue)\n.slice(0,3)\n.map(([name,data])=>({\nproduct_name:name,\nrevenue:data.revenue,\nunits_sold:data.units,\nchange_vs_last_week_pct:\nlastAgg[name]\n? Number((((data.revenue-lastAgg[name].revenue)/lastAgg[name].revenue)*100).toFixed(1))\n: null\n}));\n\n// Declining product\nlet decliningProduct = null;\nlet biggestDrop = 0;\n\nfor(const p in lastAgg){\n\nif(!thisAgg[p]) continue;\n\nconst prev = lastAgg[p].revenue;\nconst curr = thisAgg[p].revenue;\n\nif(prev===0) continue;\n\nconst drop=((prev-curr)/prev)*100;\n\nif(drop>biggestDrop){\nbiggestDrop=drop;\ndecliningProduct=p;\n}\n\n}\n\nconst months=[\"Jan\",\"Feb\",\"Mar\",\"Apr\",\"May\",\"Jun\",\"Jul\",\"Aug\",\"Sep\",\"Oct\",\"Nov\",\"Dec\"];\n\nconst reportDate=`${latestDate.getDate()} ${months[latestDate.getMonth()]} ${latestDate.getFullYear()}`;\n\nreturn [\n{\njson:{\nreport_date:reportDate,\n\ntotal_revenue_this_week:totalRevenueThisWeek,\n\ntotal_revenue_last_week:totalRevenueLastWeek,\n\nrevenue_change_pct:revenueChangePct,\n\ntotal_orders_this_week:totalOrdersThisWeek,\n\navg_order_value:avgOrderValue,\n\ntop_3_products:top3Products,\n\ndeclining_product:decliningProduct,\n\ndeclining_product_drop_pct:Number(biggestDrop.toFixed(1))\n}\n}\n];"
+      },
+      "id": "61f071ff-19cb-4b3d-ba46-b4281748164a",
+      "name": "Calculate Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ai_prompt",
+              "name": "ai_prompt",
+              "value": "=You are a senior D2C e-commerce business analyst.\n\nAnalyze the weekly sales metrics below and generate concise executive insights.\n\nDATA\n\nReport Date: {{$json.report_date}}\n\nRevenue This Week: ₹{{$json.total_revenue_this_week}}\n\nRevenue Last Week: ₹{{$json.total_revenue_last_week}}\n\nRevenue Change: {{$json.revenue_change_pct}}%\n\nOrders This Week: {{$json.total_orders_this_week}}\n\nAverage Order Value: ₹{{$json.avg_order_value}}\n\nTop Products:\n{{ JSON.stringify($json.top_3_products) }}\n\nDeclining Product:\n{{$json.declining_product}}\n\nRevenue Drop:\n{{$json.declining_product_drop_pct}}%\n\n----------------------------\n\nReturn ONLY valid JSON.\n\n{\n\"executive_summary\":\"Maximum 2 sentences summarizing overall business performance.\",\n\"top_insight\":\"One sentence describing the biggest positive insight.\",\n\"warning\":\"One sentence describing the biggest concern.\",\n\"recommended_action\":\"One practical business action the founder should take next week.\",\n\"week_sentiment\":\"positive OR neutral OR negative\"\n}\n\nDo not include markdown.\n\nDo not explain.\n\nDo not wrap inside code blocks.\n\nReturn JSON only.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "8e4ce06d-02b6-4c7d-a139-038aa8107de8",
+      "name": "Build AI Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "={{ $json.ai_prompt }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "id": "98db306b-8b6f-49aa-a3de-8c885566ffd2",
+      "name": "Generate Insights",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        0
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "8PWNZouwnGd09lBC",
+          "name": "n8n free OpenAI API credits"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const metrics = $('Calculate Metrics').first().json;\nconst fallback = {\n  executive_summary: 'Weekly sales report generated successfully. Review the metrics below for performance details.',\n  top_insight: 'Top product maintained strong revenue performance this week.',\n  warning: 'Monitor the declining product closely — continued drop may require pricing or inventory action.',\n  recommended_action: \"Review ad spend allocation for underperforming products before next week's campaign.\",\n  week_sentiment: 'neutral',\n};\nlet parsed = null;\ntry {\n  const item = $input.first().json || {};\n  let raw = '';\n  if (Array.isArray(item.output) && item.output[0] && Array.isArray(item.output[0].content) && item.output[0].content[0]) {\n    raw = item.output[0].content[0].text;\n  } else if (typeof item.text === 'string') {\n    raw = item.text;\n  } else if (item.message && item.message.content != null) {\n    raw = item.message.content;\n  } else if (item.content != null) {\n    raw = item.content;\n  }\n  if (raw && typeof raw === 'object') {\n    parsed = raw;\n  } else if (typeof raw === 'string' && raw.trim()) {\n    const BT = String.fromCharCode(96);\n    let s = raw.split(BT).join('').trim();\n    if (s.toLowerCase().indexOf('json') === 0) s = s.slice(4).trim();\n    const start = s.indexOf('{');\n    const end = s.lastIndexOf('}');\n    if (start !== -1 && end !== -1) s = s.slice(start, end + 1);\n    parsed = JSON.parse(s);\n  }\n} catch (e) {\n  parsed = null;\n}\nconst ai = parsed && typeof parsed === 'object' ? parsed : fallback;\nconst aiClean = {};\nfor (const k of Object.keys(fallback)) {\n  aiClean[k] = (ai[k] == null || ai[k] === '') ? fallback[k] : ai[k];\n}\nreturn [{ json: Object.assign({}, metrics, aiClean) }];"
+      },
+      "id": "e55159c3-d47e-46ff-a04b-00fbb61b1cf7",
+      "name": "Parse AI Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "email_html",
+              "name": "email_html",
+              "value": "={{ (function(){var j = $json;var inr = function(n){ return Number(n||0).toLocaleString(\"en-IN\"); };var chg = Number(j.revenue_change_pct||0);var chgColor = chg >= 0 ? \"#16a34a\" : \"#dc2626\";var chgSign = chg >= 0 ? \"+\" : \"\";var card = function(label,val,color){ return \"<td style=\\\"padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;text-align:center;\\\">\" +\"<div style=\\\"font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;\\\">\" + label + \"</div>\" +\"<div style=\\\"font-size:20px;font-weight:700;color:\" + (color||\"#0f172a\") + \";margin-top:6px;\\\">\" + val + \"</div>\" +\"</td>\"; };var rows = (j.top_3_products||[]).map(function(p){var pc = Number(p.change_vs_last_week_pct||0);var pcColor = pc >= 0 ? \"#16a34a\" : \"#dc2626\";var pcSign = pc >= 0 ? \"+\" : \"\";return \"<tr>\" +\"<td style=\\\"padding:10px 12px;border-bottom:1px solid #eee;\\\">\" + p.product_name + \"</td>\" +\"<td style=\\\"padding:10px 12px;border-bottom:1px solid #eee;text-align:right;\\\">INR \" + inr(p.revenue) + \"</td>\" +\"<td style=\\\"padding:10px 12px;border-bottom:1px solid #eee;text-align:right;\\\">\" + inr(p.units_sold) + \"</td>\" +\"<td style=\\\"padding:10px 12px;border-bottom:1px solid #eee;text-align:right;color:\" + pcColor + \";\\\">\" + pcSign + pc + \"%</td>\" +\"</tr>\"; }).join(\"\");return \"<div style=\\\"font-family:Arial,Helvetica,sans-serif;max-width:680px;margin:0 auto;color:#0f172a;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;\\\">\" +\"<div style=\\\"background:#0f172a;color:#ffffff;padding:20px 24px;\\\">\" +\"<div style=\\\"font-size:20px;font-weight:700;\\\">Weekly Sales Intelligence Report</div>\" +\"<div style=\\\"font-size:13px;color:#cbd5e1;margin-top:4px;\\\">\" + j.report_date + \"</div>\" +\"</div>\" +\"<div style=\\\"padding:24px;\\\">\" +\"<table style=\\\"width:100%;border-collapse:separate;border-spacing:8px;\\\"><tr>\" +card(\"Total Revenue\",\"INR \" + inr(j.total_revenue_this_week),\"#0f172a\") +card(\"Orders\",inr(j.total_orders_this_week),\"#0f172a\") +card(\"AOV\",\"INR \" + inr(j.avg_order_value),\"#0f172a\") +card(\"WoW Change\",chgSign + chg + \"%\",chgColor) +\"</tr></table>\" +\"<h3 style=\\\"margin:24px 0 8px;font-size:16px;\\\">Top 3 Products</h3>\" +\"<table style=\\\"width:100%;border-collapse:collapse;font-size:14px;\\\">\" +\"<tr style=\\\"text-align:left;color:#64748b;font-size:12px;text-transform:uppercase;\\\">\" +\"<th style=\\\"padding:8px 12px;\\\">Product</th>\" +\"<th style=\\\"padding:8px 12px;text-align:right;\\\">Revenue</th>\" +\"<th style=\\\"padding:8px 12px;text-align:right;\\\">Units Sold</th>\" +\"<th style=\\\"padding:8px 12px;text-align:right;\\\">vs Last Week</th></tr>\" +rows +\"</table>\" +\"<h3 style=\\\"margin:24px 0 8px;font-size:16px;\\\">AI Insights</h3>\" +\"<div style=\\\"background:#f1f5f9;border-radius:8px;padding:16px;font-size:14px;line-height:1.6;\\\">\" +\"<p style=\\\"margin:0 0 10px;\\\"><strong>Summary:</strong> \" + j.executive_summary + \"</p>\" +\"<p style=\\\"margin:0 0 10px;\\\"><strong>Top Insight:</strong> \" + j.top_insight + \"</p>\" +\"<p style=\\\"margin:0 0 10px;\\\"><strong>Warning:</strong> \" + j.warning + \"</p>\" +\"<p style=\\\"margin:0;\\\"><strong>Recommended Action:</strong> \" + j.recommended_action + \"</p>\" +\"</div>\" +\"</div>\" +\"<div style=\\\"background:#f8fafc;color:#94a3b8;font-size:12px;text-align:center;padding:16px;\\\">This report was generated automatically. Powered by your sales intelligence system.</div>\" +\"</div>\";})() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "974d6642-242a-459a-b4d4-eeb9f4e29e6e",
+      "name": "Build Email Body",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1344,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "shivamthakur32008@gmail.com",
+        "subject": "=Sales Report — {{ $json.report_date }} | {{ $json.total_revenue_this_week }} INR | {{ $json.revenue_change_pct }}% WoW",
+        "message": "={{ $json.email_html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "30bc77cd-3d25-4489-889a-de4f6638ffe2",
+      "name": "Send Report Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1568,
+        0
+      ],
+      "webhookId": "f18e3f09-7e85-44cc-a4fa-973a9b89b217",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "lvUix1yVuIUnsbB0",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Report Config').item.json.slack_webhook_url }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function(){var m = $('Parse AI Output').item.json;var NL = String.fromCharCode(10);var top = (m.top_3_products && m.top_3_products[0]) ? m.top_3_products[0].product_name : \"N/A\";return { text: \"Weekly Sales Report — \" + m.report_date + NL +\"Revenue: \" + m.total_revenue_this_week + \" INR (\" + m.revenue_change_pct + \"% vs last week)\" + NL +\"Top product: \" + top + NL +\"Insight: \" + m.top_insight + NL +\"Action: \" + m.recommended_action };})() }}",
+        "options": {}
+      },
+      "id": "5738eae3-b75b-46cf-b69b-b555fe3a4114",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1792,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1JygNET0xQ6Cjth3MtVIAPy8i4Vx1JBEAEVFGNU9VRFI",
+          "mode": "list",
+          "cachedResultName": "Sales D2C",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JygNET0xQ6Cjth3MtVIAPy8i4Vx1JBEAEVFGNU9VRFI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 49917169,
+          "mode": "list",
+          "cachedResultName": "report_log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JygNET0xQ6Cjth3MtVIAPy8i4Vx1JBEAEVFGNU9VRFI/edit#gid=49917169"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_date": "={{ $now.toISO() }}",
+            "report_week": "={{ $('Parse AI Output').item.json.report_date }}",
+            "total_revenue": "={{ $('Parse AI Output').item.json.total_revenue_this_week }}",
+            "revenue_change_pct": "={{ $('Parse AI Output').item.json.revenue_change_pct }}",
+            "total_orders": "={{ $('Parse AI Output').item.json.total_orders_this_week }}",
+            "avg_orders_value": "={{ $('Parse AI Output').item.json.avg_order_value }}",
+            "top_product": "={{ $('Parse AI Output').item.json.top_3_products[0].product_name }}",
+            "declining_product": "={{ $('Parse AI Output').item.json.declining_product }}",
+            "week_sentiment": "={{ $('Parse AI Output').item.json.week_sentiment }}",
+            "email_status": "Sent "
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "log_date",
+              "displayName": "log_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "report_week",
+              "displayName": "report_week",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_revenue",
+              "displayName": "total_revenue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "revenue_change_pct",
+              "displayName": "revenue_change_pct",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_orders",
+              "displayName": "total_orders",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "avg_orders_value",
+              "displayName": "avg_orders_value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "top_product",
+              "displayName": "top_product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "declining_product",
+              "displayName": "declining_product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "week_sentiment",
+              "displayName": "week_sentiment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email_status",
+              "displayName": "email_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "0b2897b9-f44c-4e49-968c-2e90b141bfe7",
+      "name": "Log Report",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2016,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "lLpznsg6chbJ0gMy",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 1. Trigger\nRuns every Monday at 08:00 (Asia/Calcutta). No manual action needed.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "26ca7f00-e914-4c4b-a189-021d91e8a4fc",
+      "name": "Sticky Note 26ca7f00",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        48,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Read Data\nReads ALL rows from the 'sales_data' sheet (date, product_name, category, units_sold, revenue).",
+        "height": 200,
+        "width": 300
+      },
+      "id": "a2983a93-3d16-41a8-8b4b-94381cfa24a4",
+      "name": "Sticky Note a2983a93",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Calculate\nThis week vs last week metrics: revenue, orders, AOV, WoW change, top 3 products, declining product.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "13b6ccef-3b78-434a-a2c8-e0ced0dd369f",
+      "name": "Sticky Note 13b6ccef",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        864,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 4. AI Insights\nBuild prompt → OpenAI gpt-4o-mini → safe JSON parse with fallback (never breaks the run).",
+        "height": 200,
+        "width": 300
+      },
+      "id": "72dff6cb-ca98-4b9c-a2bb-86f81368cfb0",
+      "name": "Sticky Note 72dff6cb",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 5. Email + Slack\nBuild HTML report, email the founder, and post a plain-text summary to Slack. All continue-on-fail.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "9b1648c8-8ea3-4c08-bab4-978cfd737acb",
+      "name": "Sticky Note 9b1648c8",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1712,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 6. Log\nAppend one audit row to the 'report_log' sheet, including email_status (Sent/Failed).",
+        "height": 232,
+        "width": 252
+      },
+      "id": "56b93b25-08a0-445b-85cd-56c9e8747dd8",
+      "name": "Sticky Note 56b93b25",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        -304
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Weekly Report Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Sales Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Sales Data": {
+      "main": [
+        [
+          {
+            "node": "Calculate Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Metrics": {
+      "main": [
+        [
+          {
+            "node": "Build AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Insights": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Output": {
+      "main": [
+        [
+          {
+            "node": "Build Email Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Email Body": {
+      "main": [
+        [
+          {
+            "node": "Send Report Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Report Email": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Log Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "errorWorkflow": "DCACBxaEzA7lpVpp"
+  },
+  "versionId": "5148b033-8068-4a0f-925c-0e3ccfc55dca",
+  "meta": {
+    "instanceId": "ab810545db64c7ce56a14fe351c3cd99c18cf288df717005cfb5488e3bad9712"
+  },
+  "nodeGroups": [],
+  "id": "DHqLCUjk2ZlFn9t9",
+  "tags": []
+}
