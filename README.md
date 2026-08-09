@@ -1,194 +1,352 @@
 # D2C Weekly Sales Intelligence Automation
 
-An AI-powered weekly sales reporting system built with **n8n, Google Sheets, OpenAI, and Gmail**.
+An AI-powered weekly sales intelligence system for D2C/e-commerce businesses.
 
-This workflow transforms raw D2C sales data into structured business metrics, AI-generated insights, and an automated executive report.
+This automation takes raw sales data from Google Sheets, calculates weekly business metrics, uses AI to generate actionable insights, and automatically delivers an executive sales report by email.
 
-## 🚀 Overview
+The goal is simple:
 
-D2C businesses generate large amounts of sales data, but manually reviewing that data every week can be repetitive and time-consuming.
+**Raw sales data → Business metrics → AI analysis → Executive report → Automated delivery**
 
-This automation handles the reporting process automatically:
+---
 
-**Sales Data → Metrics → AI Analysis → Executive Report → Email**
+## 🚀 What This Automation Does
 
-The system helps identify:
+Every week, the workflow automatically:
 
-- Weekly revenue performance
-- Week-over-week revenue changes
-- Order volume
-- Average order value
-- Top-performing products
-- Declining products
-- Important business risks
-- Recommended actions
+1. Reads sales data from Google Sheets
+2. Calculates weekly revenue and order metrics
+3. Compares the current week with the previous week
+4. Identifies top-performing products
+5. Detects products with declining performance
+6. Sends the calculated metrics to an AI model
+7. Generates structured business insights
+8. Builds a professional HTML email report
+9. Sends the report through Gmail
+10. Sends an alert through Slack
+11. Logs the report execution
+12. Uses a separate error-handling workflow for failures
 
-## 🔄 Workflow
+No manual weekly reporting is required.
+
+---
+
+## 🧩 Workflow Architecture
 
 ```text
+Weekly Trigger
+      ↓
 Google Sheets
+(Read Sales Data)
       ↓
-Read Sales Data
+Calculate Metrics
       ↓
-Calculate Weekly Metrics
-      ↓
-Build AI Analysis Prompt
+Build AI Prompt
       ↓
 OpenAI
+(Generate Insights)
       ↓
 Parse AI Output
       ↓
-Build Executive Email
+Build HTML Report
       ↓
 Gmail
       ↓
-Weekly Sales Intelligence Report
-⚙️ Key Features
-1. Automated Data Collection
+Slack Alert
+      ↓
+Report Log
 
-The workflow reads sales records directly from Google Sheets.
+A separate error-handling workflow is included to notify when the main workflow encounters an error.
 
-Example fields include:
+📊 Business Metrics
 
-Date
-Product
-Category
-Units Sold
-Revenue
-Profit
-Discount
-Sales Channel
-Region
-2. Weekly Performance Analysis
+The workflow is designed to analyze metrics such as:
 
-The workflow calculates:
-
-Current week revenue
-Previous week revenue
-Revenue change %
-Weekly order volume
+Weekly revenue
+Previous-week revenue
+Revenue growth/decline %
+Weekly orders
 Average order value
 Top-performing products
-Product-level week-over-week changes
+Product-level week-over-week performance
 Declining products
+Revenue trends
+Business risks
+Recommended actions
 
-The reporting period is determined dynamically from the available sales data.
+The calculations are performed before the AI analysis so that the AI works from structured business data rather than raw spreadsheet rows.
 
-3. AI-Powered Business Insights
+🤖 AI-Powered Analysis
 
-The calculated metrics are passed to OpenAI for business analysis.
+The AI layer converts the calculated metrics into structured business insights.
 
-The AI generates:
+The generated output includes:
 
 Executive summary
-Top business insight
-Biggest warning
+Top insight
+Warning
 Recommended action
-Overall weekly sentiment
+Weekly sentiment
 
-The AI response is structured so it can be reliably used by the next automation steps.
+The AI is used for interpretation and business reasoning, while numerical calculations are handled separately in the workflow.
 
-4. Automated Executive Report
+This separation helps reduce the risk of the AI inventing or incorrectly calculating business metrics.
 
-The workflow converts the analysis into a formatted HTML report and sends it automatically through Gmail.
+📧 Automated Executive Report
 
-The business owner receives the important information without manually preparing a weekly report.
+The workflow generates a formatted HTML sales report and sends it automatically through Gmail.
 
-🧠 Automation Logic
+The report is designed to give a business owner a quick view of:
 
-The core principle is:
-
-Calculate first. Interpret second. Deliver automatically.
-
-Instead of sending thousands of raw sales records directly to AI, the workflow first calculates the important business metrics.
-
-AI then interprets the structured metrics and generates business-focused insights.
+What happened → Why it matters → What should be investigated next
 
 🛡️ Error Handling
 
-A separate error-handling workflow is included.
+The project also includes a separate error-handling workflow.
 
-If the main workflow encounters an error, an alert can be triggered so the failure does not go unnoticed.
+If the main workflow fails, an alert can be triggered so that the failure does not go unnoticed.
 
-This makes the automation more reliable for real-world use.
+This is important for production-style automation because a workflow that silently fails is not reliable enough for business use.
 
-🛠️ Technologies Used
-Technology	Purpose
-n8n	Workflow automation
-Google Sheets	Sales data source
-OpenAI	AI business analysis
-Gmail	Automated report delivery
-JavaScript	Data processing and calculations
-📊 Example Use Case
+🗂️ Project Files
+Workflow
 
-A D2C company stores its sales data in Google Sheets.
+D2C Weekly Sales Intelligence Report.json
 
-Every week the automation:
+Main n8n workflow containing the complete automation.
 
-Reads the latest sales data
-Calculates weekly metrics
-Compares performance with the previous week
-Identifies top-performing products
-Detects declining products
-Sends structured metrics to AI
-Generates business insights
-Creates an executive report
-Sends the report automatically by email
-📁 Project Structure
-D2C-Weekly-Sales-Intelligence/
-│
-├── README.md
-│
-├── workflow/
-│   └── D2C-Weekly-Sales-Intelligence.json
-│
-├── sample-data/
-│   └── sales_data.csv
-│
-├── screenshots/
-│   ├── workflow.png
-│   ├── sales-data.png
-│   ├── ai-insights.png
-│   └── email-report.png
-│
-└── docs/
-    └── setup.md
+Error Handler
+
+D2C Sales Report - Error Handler.json
+
+Separate workflow for handling workflow failures.
+
+Screenshots
+Workflow.png — Complete workflow architecture
+Calculate_metrics.png — Calculated business metrics
+AI insights.png — AI-generated analysis
+Gmail.png — Automated email report
+Error handler.png — Error-handling workflow
+Report log.png — Report execution logging
+Dummy_data.png — Example sales dataset
+Demo
+
+A recorded walkthrough demonstrating how the automation works.
+
+🛠️ Technology Stack
+n8n — Workflow automation
+Google Sheets — Sales data source
+JavaScript — Business metric calculations and data processing
+OpenAI — AI-generated business insights
+Gmail — Automated report delivery
+Slack / Webhooks — Notifications
+HTML/CSS — Executive report formatting
+🔄 Example Use Case
+
+Imagine a D2C brand has hundreds or thousands of sales records in Google Sheets.
+
+Instead of manually opening the spreadsheet every Monday and asking:
+
+How much did we sell?
+Did revenue increase or decrease?
+Which products performed best?
+Which products are declining?
+What should we investigate?
+What action should the business take?
+
+The automation performs the reporting process automatically.
+
+The business owner receives a structured weekly report without manually calculating the numbers.
+
+📈 Why This Matters
+
+The value of this system is not simply sending an email.
+
+The workflow creates a repeatable reporting process:
+
+Data → Analysis → Insight → Action
+
+This can help reduce repetitive reporting work and give decision-makers a faster view of business performance.
+
+🔐 Security
+
+This repository contains demonstration data and workflow configuration only.
+
+Before deploying the workflow:
+
+Add your own Google Sheets credentials
+Add your own OpenAI credentials
+Add your own Gmail credentials
+Configure Slack/webhook credentials
+Never commit API keys, passwords, tokens, or private business data
+
+Credentials should always be stored inside n8n's credential system rather than hard-coded into workflow files.
+
+⚙️ How To Use
+1. Import the workflow
+
+Import:
+
+D2C Weekly Sales Intelligence Report.json
+
+into your n8n instance.
+
+2. Configure credentials
+
+Connect:
+
+Google Sheets
+OpenAI
+Gmail
+Slack/webhook
+3. Connect your sales data
+
+Use a Google Sheet containing your sales records.
+
+Example structure:
+
+date
+product_name
+category
+units_sold
+revenue
+profit
+discount_percent
+sales_channel
+region
+4. Configure report recipients
+
+Set the required email address and notification destination.
+
+5. Test the workflow
+
+Run the workflow manually first and verify:
+
+Calculated metrics
+AI output
+Email formatting
+Notifications
+Report logging
+6. Activate the schedule
+
+Once testing is complete, activate the weekly trigger.
+
+🎥 Demo
+
+Watch the complete workflow demonstration:
+
+▶ Watch the Automation Demo - https://www.loom.com/share/4446427ce3c243549227fc69266ee5ff
+
+🧠 Key Design Principle
+
+The workflow separates deterministic calculations from AI interpretation.
+
+Raw Data
+   ↓
+JavaScript Calculations
+   ↓
+Verified Metrics
+   ↓
+AI Interpretation
+   ↓
+Business Report
+
+This is intentional.
+
+AI should help interpret business information, while important numerical calculations should be handled deterministically whenever possible.
+
+🚧 Current Scope
+
+This project is a demonstration/prototype of a D2C weekly sales intelligence system.
+
+For production deployment, additional features could include:
+
+Database storage
+Historical trend analysis
+Multiple sales channels
+Shopify integration
+Automated anomaly detection
+Inventory analysis
+Customer cohort analysis
+Customer acquisition metrics
+Profitability analysis
+Dashboard integration
+Automated recommendations
+Monitoring and retry logic
 🔮 Future Improvements
 
-Possible extensions include:
+Potential next versions could integrate:
 
-Shopify integration
-WooCommerce integration
-Slack alerts
-Meta Ads performance analysis
-Google Analytics integration
-Inventory monitoring
-Customer retention analysis
-Automated anomaly detection
-Product-level alerts
-Dashboard integration
-Multi-channel sales reporting
-Automated PDF reports
-Database integration
-💼 What This Project Demonstrates
+Shopify → Google Sheets/Database → n8n → AI → Email/Slack → Dashboard
 
-This project demonstrates practical experience with:
+This would allow the system to move from a spreadsheet-based reporting workflow toward a more complete e-commerce intelligence platform.
 
+👤 Author
+
+Built by Shivam Thakur
+
+Focused on building practical automation systems combining:
+
+AI
+Business analytics
+Financial analysis
 Workflow automation
-AI integration
-Google Sheets integration
-JavaScript data processing
-Structured AI outputs
-Business reporting
-Automated email delivery
-Error handling
-Data-driven decision support
-⚠️ Disclaimer
+Data-driven decision making
+⭐ Project Objective
 
-This is a portfolio/demo project using sample sales data.
+This project demonstrates how repetitive business reporting can be transformed into an automated intelligence workflow.
 
-The data is illustrative and does not represent a real client.
+The broader objective is to build automation systems that do more than move data between applications:
 
-Business decisions should be validated against actual company data and business context before implementation.
+They should help businesses understand their data and make better decisions.
 
-Built with n8n + Google Sheets + OpenAI + Gmail
+
+---
+
+# 2. GitHub Topics / Tags
+
+Your current tags are okay, but I would change them to these:
+
+### Use these 10:
+
+```text
+n8n
+ai-automation
+workflow-automation
+business-automation
+sales-automation
+sales-analytics
+d2c
+ecommerce
+google-sheets
+openai
+If GitHub allows more, add:
+business-intelligence
+data-analysis
+javascript
+gmail-automation
+reporting-automation
+Best 5 if you want to keep it tight
+n8n
+ai-automation
+business-automation
+sales-analytics
+d2c
+One important change to your current repo
+
+Your screenshot shows the files are all sitting in the root directory:
+
+AI insights.png
+Calculate_metrics.png
+D2C Sales Report - Error Handler.json
+D2C Weekly Sales Intelligence Report.json
+Dummy_data.png
+Error handler.png
+Gmail.png
+README.md
+Report log.png
+Workflow.png
+
+That's acceptable for a small portfolio project, but don't waste time reorganizing it now.
+
+Your bigger priority is:
